@@ -1,0 +1,44 @@
+[build-system]
+requires = [
+    "setuptools>=42",
+    "wheel"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "runmodel"
+version = "0.1.0"
+description = "Multi-objective optimization model with Q-learning"
+authors = [
+    {name = "Your Name", email = "your.email@example.com"}
+]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26,<2",
+    "pandas>=2.0,<3",
+    "openpyxl>=3.1.2",
+    "scikit-learn",
+    "matplotlib" ,
+    "seaborn",
+    "polyline",
+    "folium"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "black",
+    "flake8"
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+packages = {find = {where = ["src"]}}
+
+[tool.setuptools.package-data]
+runmodel = [
+    "../data/parametros/*.xlsx",  # Include data files
+    "*.py"
+]

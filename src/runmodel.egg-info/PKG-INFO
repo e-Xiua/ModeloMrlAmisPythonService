@@ -1,0 +1,22 @@
+Metadata-Version: 2.4
+Name: runmodel
+Version: 0.1.0
+Summary: Multi-objective optimization model with Q-learning
+Home-page: https://github.com/yourusername/runmodel
+Author: Your Name
+Author-email: Your Name <your.email@example.com>
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: numpy<2,>=1.26
+Requires-Dist: pandas<3,>=2.0
+Requires-Dist: openpyxl>=3.1.2
+Requires-Dist: scikit-learn
+Requires-Dist: matplotlib
+Requires-Dist: seaborn
+Requires-Dist: polyline
+Requires-Dist: folium
+Provides-Extra: dev
+Requires-Dist: pytest; extra == "dev"
+Requires-Dist: pytest-cov; extra == "dev"
+Requires-Dist: black; extra == "dev"
+Requires-Dist: flake8; extra == "dev"

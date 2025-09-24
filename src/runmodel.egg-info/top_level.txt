@@ -1,0 +1,10 @@
+AgenteQLearning
+analisis_multi_objetivo_y_metricos
+bucle_principal_mrl_amis
+convergencia_iteraciones_mrl_amis
+ejecucion_iteraciones_mrl_amis
+estado_y_recompensa_rl
+generacionWorkPackages
+intelligence_boxes
+runmodel
+rutas_optimas
