@@ -1,0 +1,5 @@
+nohup: no se tendrá en cuenta la entrada
+2025-09-29 13:52:33,833 - __main__ - INFO - Inicializando RouteOptimizationService...
+2025-09-29 13:52:33,834 - __main__ - INFO - RouteOptimizationService inicializado correctamente
+2025-09-29 13:52:33,834 - __main__ - INFO - Iniciando servidor gRPC en [::]:50051
+2025-09-29 13:52:33,835 - __main__ - INFO - Servidor gRPC iniciado correctamente
