@@ -1,45 +1,24 @@
+"""Servidor gRPC con sistema de colas usando dataclasses de dominio."""
+
 import grpc
 from concurrent import futures
 import time
 import logging
 import sys
 import os
-import numpy as np
-import pandas as pd
 from typing import Dict, Any, List
 
 # Agregar el directorio src al path para importar módulos
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+# Agregar el directorio 'src' (padre de este paquete) al sys.path
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))  # -> .../ModeloMrlAmisPythonService/src
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+    
+from generated import route_optimization_pb2 
+from generated import route_optimization_pb2_grpc 
 
-# Importar los protobuf generados (se generarán después)
-try:
-    sys.path.append(os.path.join(os.path.dirname(__file__), 'generated'))
-    import route_optimization_pb2
-    import route_optimization_pb2_grpc
-except ImportError:
-    print("Error: Los archivos protobuf no han sido generados. Ejecuta:")
-    print("./generate_proto.sh")
-    print("O manualmente:")
-    print("python -m grpc_tools.protoc -I./protos --python_out=./generated --grpc_python_out=./generated ./protos/route_optimization.proto")
-    sys.exit(1)
-
-# Importar funciones del modelo MRL-AMIS
-from runmodel.models.data_generator import generate_synthetic_data
-from AgenteQLearning.QLearningAgent import QLearningAgent
-from bucle_principal_mrl_amis.bucle_iterativo_mrl_amis import find_pareto_front, update_population
-from generacionWorkPackages.workPackages import decodificar_wp, generar_work_packages
-from generacionWorkPackages.funcionesObjetivo import evaluar_funciones_objetivo
-from estado_y_recompensa_rl.definir_comportamiento import calculate_reward, get_state
-from intelligence_boxes.definir_intelligence_boxes import (
-    ib_random_perturbation,
-    ib_swap_mutation,
-    ib_inversion_mutation,
-    ib_guided_perturbation,
-    ib_local_search,
-    ib_diversity_mutation
-)
-from analisis_multi_objetivo_y_metricos.hypervolume import calculate_hypervolume
-from bucle_principal_mrl_amis.bucle_iterativo_mrl_amis import calculate_average_ratio_pareto, spacing_metric
+from grpc_queue.queue_system import get_queue_system, shutdown_queue_system
 
 # Configurar logging
 logging.basicConfig(
@@ -51,12 +30,11 @@ logger = logging.getLogger(__name__)
 class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationServiceServicer):
     
     def __init__(self):
-        """Inicializar el servicio de optimización de rutas con sistema de colas"""
-        logger.info("Inicializando RouteOptimizationService...")
+        """Inicializar el servicio de optimización de rutas con sistema de colas y dataclasses"""
+        logger.info("Inicializando RouteOptimizationService con dataclasses...")
         
-        # Importar sistema de colas
-        from job_queue_system import get_job_queue_system
-        self.job_queue = get_job_queue_system()
+        # Sistema de colas actualizado
+        self.job_queue = get_queue_system()
         
         # Configuración predeterminada del modelo MRL-AMIS
         self.default_config = {
@@ -64,39 +42,24 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
             'max_iterations': 100,
             'num_pois': 15,
             'max_pois_per_route': 10,
-            'min_pois_per_route': 3,
+            'min_pois_per_route': 1,
             'num_routes_per_wp': 3,
-            'max_duration_per_route': 720,
-            'maximize_objectives_list': [True, False, False, True, False],  # [preferencia, costo, co2, sustentabilidad, riesgo]
+            'max_duration_per_route': 72000,  # 20 horas
+            'maximize_objectives_list': [True, False, False, True, False],
             'ref_point_hypervolume': [0, 1000, 1000, -1000, 1000]
         }
         
-        # Configuración del agente RL
-        self.rl_config = {
-            'state_space_size': 7,
-            'action_space_size': 6,
-            'learning_rate': 0.2,
-            'discount_factor': 0.85,
-            'epsilon_start': 1.0,
-            'epsilon_decay_rate': 0.995,
-            'min_epsilon': 0.15
-        }
-        
-        # Intelligence Boxes disponibles
-        self.intelligence_boxes = {
-            0: ib_random_perturbation,
-            1: ib_swap_mutation,
-            2: ib_inversion_mutation,
-            3: ib_guided_perturbation,
-            4: ib_local_search,
-            5: ib_diversity_mutation
-        }
-        
-        logger.info("RouteOptimizationService inicializado correctamente con sistema de colas")
+        logger.info("RouteOptimizationService inicializado correctamente con dataclasses")
     
     def OptimizeRoute(self, request, context):
-        """Método principal para optimizar rutas usando MRL-AMIS con sistema de colas"""
+        """Método principal para optimizar rutas usando MRL-AMIS con dataclasses"""
         try:
+            
+            # LOG 1: Solicitud gRPC entrante
+            logger.info("======================================================================")
+            logger.info(f"PASO 1: Solicitud gRPC recibida (ID: {request.route_id})")
+            logger.info(f"  -> Contenido gRPC (crudo): {request}")
+            
             logger.info(f"=== NUEVA SOLICITUD DE OPTIMIZACIÓN ===")
             logger.info(f"Route ID: {request.route_id}")
             logger.info(f"User ID: {request.user_id}")
@@ -108,22 +71,31 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
                 context.set_details('Al menos un POI es requerido')
                 return route_optimization_pb2.RouteOptimizationResponse()
             
-            if len(request.pois) > 20:
-                context.set_code(grpc.StatusCode.INVALID_ARGUMENT)
-                context.set_details('Máximo 20 POIs permitidos')
-                return route_optimization_pb2.RouteOptimizationResponse()
-            
             # Preparar datos del trabajo
             job_data = {
                 'route_id': request.route_id or f'route_{int(time.time())}',
                 'user_id': request.user_id or 'anonymous'
             }
             
-            # Serializar datos de la solicitud
+            # Serializar datos de la solicitud con manejo seguro de campos opcionales
             request_data = self._serialize_grpc_request(request)
+            
+            # LOG 2: Datos serializados a diccionario
+            logger.info(f"PASO 2: Solicitud serializada a diccionario (ID: {request.route_id})")
+            logger.info(f"  -> Contenido serializado: {request_data}")
+            
+            # Normalizar restricciones con POIs si es necesario
+            request_data = self._ensure_default_locations(request_data)
+            
+            # LOG 3: Datos normalizados antes de encolar
+            logger.info(f"PASO 3: Diccionario normalizado antes de encolar (ID: {request.route_id})")
+            logger.info(f"  -> Contenido normalizado: {request_data}")
             
             # Enviar trabajo a la cola
             job_id = self.job_queue.submit_job(job_data, request_data)
+            
+            logger.info(f"PASO 4: Trabajo {job_id} enviado a la cola.")
+            logger.info("======================================================================")
             
             logger.info(f"Trabajo enviado a la cola con ID: {job_id}")
             
@@ -137,7 +109,7 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
             # Añadir información de la cola
             queue_info = self.job_queue.get_queue_info()
             response.queue_position = queue_info['queue_size']
-            response.estimated_wait_time_minutes = queue_info['queue_size'] * 5  # Estimación simple
+            response.estimated_wait_time_minutes = queue_info['queue_size'] * 5
             
             return response
             
@@ -146,6 +118,46 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
             context.set_code(grpc.StatusCode.INTERNAL)
             context.set_details(f'Error interno del servidor: {str(e)}')
             return route_optimization_pb2.RouteOptimizationResponse()
+        
+    def _ensure_default_locations(self, request_data: dict) -> dict:
+        """Asegura que existan ubicaciones por defecto si no se proporcionan."""
+        constraints = request_data.get('constraints') or {}
+        pois = request_data.get('pois') or []
+        
+        if not constraints.get('start_location') and pois:
+            first_poi = pois[0]
+            constraints['start_location'] = {
+                'latitude': first_poi.get('latitude', 0.0),
+                'longitude': first_poi.get('longitude', 0.0)
+            }
+        
+        if not constraints.get('end_location') and len(pois) > 1:
+            last_poi = pois[-1]
+            constraints['end_location'] = {
+                'latitude': last_poi.get('latitude', 0.0),
+                'longitude': last_poi.get('longitude', 0.0)
+            }
+        
+        request_data['constraints'] = constraints
+        return request_data
+
+    def _get_default_start_location(self, constraints, pois):
+        if constraints.get('start_location'):
+            return constraints.get('start_location')
+        if pois:
+            start_loc = self._poi_to_loc(pois[0])
+            if start_loc and (start_loc['latitude'] or start_loc['longitude']):
+                return start_loc
+        return None
+
+    def _get_default_end_location(self, constraints, pois):
+        if constraints.get('end_location'):
+            return constraints.get('end_location')
+        if len(pois) > 1:
+            end_loc = self._poi_to_loc(pois[-1])
+            if end_loc and (end_loc['latitude'] or end_loc['longitude']):
+                return end_loc
+        return None
     
     def GetJobStatus(self, request, context):
         """Obtener estado de un trabajo de optimización"""
@@ -180,7 +192,6 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
             # Si está completado, incluir resultados
             if job.status.value == "COMPLETED" and job.result:
                 response.has_result = True
-                # Los resultados se obtienen por separado con GetJobResult
             
             return response
             
@@ -239,7 +250,7 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
             if success:
                 response.message = f"Trabajo {job_id} cancelado exitosamente"
             else:
-                response.message = f"No se pudo cancelar el trabajo {job_id} (puede que ya esté completado o no exista)"
+                response.message = f"No se pudo cancelar el trabajo {job_id}"
             
             return response
             
@@ -286,8 +297,8 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
             
             return route_optimization_pb2.HealthResponse(
                 is_healthy=True,
-                status=f"Service running - Queue: {queue_info['queue_size']} waiting, {queue_info['active_jobs']} active",
-                version="2.0.0",
+                status=f"Service running with dataclasses - Queue: {queue_info['queue_size']} waiting, {queue_info['active_jobs']} active",
+                version="2.1.0",
                 queue_size=queue_info['queue_size'],
                 active_jobs=queue_info['active_jobs']
             )
@@ -296,11 +307,11 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
             return route_optimization_pb2.HealthResponse(
                 is_healthy=False,
                 status=f"Service error: {str(e)}",
-                version="2.0.0"
+                version="2.1.0"
             )
     
     def _serialize_grpc_request(self, request) -> Dict[str, Any]:
-        """Serializar solicitud gRPC para procesamiento en cola"""
+        """Serializar solicitud gRPC para procesamiento en cola con manejo seguro de campos"""
         return {
             'route_id': request.route_id,
             'user_id': request.user_id,
@@ -330,30 +341,44 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
         }
     
     def _serialize_preferences(self, preferences):
-        """Serializar preferencias para procesamiento"""
+        """Serializar preferencias para procesamiento con manejo seguro de preferred_categories"""
         return {
             'optimize_for': preferences.optimize_for,
             'max_total_time': preferences.max_total_time,
             'max_total_cost': preferences.max_total_cost,
-            'preferred_categories': list(preferences.preferred_categories),
-            'avoid_categories': list(preferences.avoid_categories),
+            'preferred_categories': list(getattr(preferences, 'preferred_categories', [])),
+            'avoid_categories': list(getattr(preferences, 'avoid_categories', [])),
             'accessibility_required': preferences.accessibility_required
         }
     
     def _serialize_constraints(self, constraints):
-        """Serializar restricciones para procesamiento"""
-        return {
-            'start_location': {
+        """Serializar restricciones para procesamiento de forma segura."""
+        start_loc = None
+        end_loc = None
+# FORMA SEGURA de comprobar si el campo existe antes de acceder a él
+        if constraints and constraints.HasField("start_location"):
+            logger.info("  -> Serializando `start_location` desde la solicitud gRPC.")
+            start_loc = {
                 'latitude': constraints.start_location.latitude,
                 'longitude': constraints.start_location.longitude
-            } if constraints.start_location else None,
-            'end_location': {
+            }
+        else:
+            logger.info("  -> No se encontró `start_location` en la solicitud gRPC. Se usará `None`.")
+
+        if constraints and constraints.HasField("end_location"):
+            logger.info("  -> Serializando `end_location` desde la solicitud gRPC.")
+            end_loc = {
                 'latitude': constraints.end_location.latitude,
                 'longitude': constraints.end_location.longitude
-            } if constraints.end_location else None,
-            'start_time': constraints.start_time,
-            'lunch_break_required': constraints.lunch_break_required,
-            'lunch_break_duration': constraints.lunch_break_duration
+            }
+        else:
+            logger.info("  -> No se encontró `end_location` en la solicitud gRPC. Se usará `None`.")
+        return {
+            'start_location': start_loc,
+            'end_location': end_loc,
+            'start_time': constraints.start_time if constraints else '',
+            'lunch_break_required': constraints.lunch_break_required if constraints else False,
+            'lunch_break_duration': constraints.lunch_break_duration if constraints else 0
         }
     
     def _convert_results_to_grpc_response(self, route_id: str, results: Dict[str, Any], 
@@ -365,10 +390,9 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
         response.route_id = route_id
         response.job_id = job_id
         response.status = "COMPLETED"
-        response.message = "Optimización completada exitosamente"
+        response.message = "Optimización completada exitosamente usando dataclasses"
         
         # Resultados de optimización
-        response.results.optimized_route_id = results.get('optimized_route_id', route_id)
         response.results.total_distance_km = results.get('total_distance_km', 0.0)
         response.results.total_time_minutes = results.get('total_time_minutes', 0)
         response.results.total_cost = results.get('total_cost', 0.0)
@@ -378,7 +402,7 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
         for poi_data in results.get('optimized_sequence', []):
             optimized_poi = response.results.optimized_sequence.add()
             optimized_poi.poi_id = poi_data.get('poi_id', 0)
-            optimized_poi.name = poi_data.get('name', '')
+            optimized_poi.poi_name = poi_data.get('name', '')
             optimized_poi.latitude = poi_data.get('latitude', 0.0)
             optimized_poi.longitude = poi_data.get('longitude', 0.0)
             optimized_poi.visit_order = poi_data.get('visit_order', 0)
@@ -387,16 +411,28 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
             optimized_poi.departure_time = poi_data.get('departure_time', '')
         
         # Métricas de optimización
-        response.results.metrics.execution_time_seconds = execution_time
-        response.results.metrics.algorithm_used = results.get('optimization_algorithm', 'MRL-AMIS')
-        response.results.metrics.iterations_completed = results.get('iterations_completed', 0)
-        response.results.metrics.feasible_solutions_found = results.get('feasible_solutions_found', 0)
-        response.results.metrics.generated_at = results.get('generated_at', '')
+            try:
+                response.metrics.hypervolume = float(results.get('hypervolume', 0.0))
+                response.metrics.arp = float(results.get('arp', 0.0))              
+                response.metrics.spacing = float(results.get('spacing', 0.0))
+                response.metrics.pareto_front_size = int(results.get('pareto_front_size', 0))
+                response.metrics.total_iterations = int(results.get('total_iterations', 0))
+                response.metrics.execution_time_seconds = float(execution_time)
+                
+                # Campos adicionales si existen
+                if 'iterations_completed' in results:
+                    response.metrics.total_iterations = int(results.get('iterations_completed', 0))
+                if 'feasible_solutions_found' in results:
+                    response.metrics.pareto_front_size = int(results.get('feasible_solutions_found', 0))
+            except AttributeError as e:
+                # Si el campo metrics no existe en el proto, simplemente continuar
+                logger.warning(f"Campo 'metrics' no disponible en RouteOptimizationResponse: {e}")
         
         return response
 
+
 def serve():
-    """Iniciar el servidor gRPC con sistema de colas"""
+    """Iniciar el servidor gRPC con sistema de colas y dataclasses"""
     port = os.getenv('GRPC_PORT', '50051')
     max_workers = int(os.getenv('GRPC_MAX_WORKERS', '10'))
     
@@ -409,9 +445,9 @@ def serve():
     listen_addr = f'[::]:{port}'
     server.add_insecure_port(listen_addr)
     
-    logger.info(f"Iniciando servidor gRPC en {listen_addr} con {max_workers} workers")
+    logger.info(f"Iniciando servidor gRPC con dataclasses en {listen_addr} con {max_workers} workers")
     server.start()
-    logger.info("Servidor gRPC con sistema de colas iniciado correctamente")
+    logger.info("Servidor gRPC con sistema de colas y dataclasses iniciado correctamente")
     
     try:
         server.wait_for_termination()
@@ -419,12 +455,12 @@ def serve():
         logger.info("Cerrando servidor gRPC...")
         
         # Cerrar sistema de colas
-        from job_queue_system import shutdown_job_queue_system
-        shutdown_job_queue_system()
+        shutdown_queue_system()
         
         # Cerrar servidor gRPC
         server.stop(grace=5)
         logger.info("Servidor gRPC cerrado")
+
 
 if __name__ == '__main__':
     serve()
