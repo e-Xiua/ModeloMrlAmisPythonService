@@ -12,6 +12,10 @@ dependencies:
   - seaborn=0.12.2
   - folium=0.14.0
   - polyline=1.4.0
+  - grpcio=1.74.1
+  - grpcio-tools=1.74.1
+  - protobuf=6.31.1
+  - loguru>=0.6.0
   - pip
   - pip:
     - -e .

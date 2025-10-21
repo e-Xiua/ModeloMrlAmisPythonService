@@ -1,0 +1,125 @@
+nohup: no se tendrá en cuenta la entrada
+2025-09-27 18:00:48,007 - __main__ - INFO - Inicializando RouteOptimizationService...
+2025-09-27 18:00:48,007 - __main__ - INFO - RouteOptimizationService inicializado correctamente
+2025-09-27 18:00:48,008 - __main__ - INFO - Iniciando servidor gRPC en [::]:50051
+2025-09-27 18:00:48,009 - __main__ - INFO - Servidor gRPC iniciado correctamente
+2025-09-27 18:04:11,306 - __main__ - INFO - === SOLICITUD DE OPTIMIZACIÓN RECIBIDA ===
+2025-09-27 18:04:11,307 - __main__ - INFO - Route ID: route-cultural-1759014242667
+2025-09-27 18:04:11,307 - __main__ - INFO - User ID: system-user
+2025-09-27 18:04:11,307 - __main__ - INFO - Número de POIs: 3
+2025-09-27 18:04:11,307 - __main__ - INFO - Convirtiendo solicitud gRPC a datos del modelo...
+2025-09-27 18:04:11,348 - __main__ - INFO - Datos del modelo preparados: 3 POIs
+2025-09-27 18:04:11,348 - __main__ - INFO - Ejecutando modelo MRL-AMIS...
+2025-09-27 18:04:11,349 - __main__ - INFO - Generados 100 Work Packages iniciales
+2025-09-27 18:04:11,352 - __main__ - ERROR - Error en optimización de ruta: '0'
+Traceback (most recent call last):
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/indexes/base.py", line 3805, in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7081, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7089, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: '0'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/santiagovera/FrontEnd/e-Xiua/ModeloMrlAmisPythonService/grpc_server.py", line 107, in OptimizeRoute
+    results = self._execute_mrl_amis_model(data, request)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/FrontEnd/e-Xiua/ModeloMrlAmisPythonService/grpc_server.py", line 270, in _execute_mrl_amis_model
+    metrics = evaluar_funciones_objetivo(ruta_decodificada, data, tipo_turista=tipo_turista)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/FrontEnd/e-Xiua/ModeloMrlAmisPythonService/src/generacionWorkPackages/funcionesObjetivo.py", line 42, in evaluar_funciones_objetivo
+    costo_total += costos_df.loc[origen, destino]
+                   ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/indexing.py", line 1183, in __getitem__
+    return self.obj._get_value(*key, takeable=self._takeable)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/frame.py", line 4221, in _get_value
+    row = self.index.get_loc(index)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    raise KeyError(key) from err
+KeyError: '0'
+2025-09-27 18:04:12,368 - __main__ - INFO - === SOLICITUD DE OPTIMIZACIÓN RECIBIDA ===
+2025-09-27 18:04:12,368 - __main__ - INFO - Route ID: route-cultural-1759014242667
+2025-09-27 18:04:12,368 - __main__ - INFO - User ID: system-user
+2025-09-27 18:04:12,368 - __main__ - INFO - Número de POIs: 3
+2025-09-27 18:04:12,368 - __main__ - INFO - Convirtiendo solicitud gRPC a datos del modelo...
+2025-09-27 18:04:12,383 - __main__ - INFO - Datos del modelo preparados: 3 POIs
+2025-09-27 18:04:12,383 - __main__ - INFO - Ejecutando modelo MRL-AMIS...
+2025-09-27 18:04:12,383 - __main__ - INFO - Generados 100 Work Packages iniciales
+2025-09-27 18:04:12,386 - __main__ - ERROR - Error en optimización de ruta: '0'
+Traceback (most recent call last):
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/indexes/base.py", line 3805, in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7081, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7089, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: '0'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/santiagovera/FrontEnd/e-Xiua/ModeloMrlAmisPythonService/grpc_server.py", line 107, in OptimizeRoute
+    results = self._execute_mrl_amis_model(data, request)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/FrontEnd/e-Xiua/ModeloMrlAmisPythonService/grpc_server.py", line 270, in _execute_mrl_amis_model
+    metrics = evaluar_funciones_objetivo(ruta_decodificada, data, tipo_turista=tipo_turista)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/FrontEnd/e-Xiua/ModeloMrlAmisPythonService/src/generacionWorkPackages/funcionesObjetivo.py", line 42, in evaluar_funciones_objetivo
+    costo_total += costos_df.loc[origen, destino]
+                   ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/indexing.py", line 1183, in __getitem__
+    return self.obj._get_value(*key, takeable=self._takeable)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/frame.py", line 4221, in _get_value
+    row = self.index.get_loc(index)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    raise KeyError(key) from err
+KeyError: '0'
+2025-09-27 18:04:14,391 - __main__ - INFO - === SOLICITUD DE OPTIMIZACIÓN RECIBIDA ===
+2025-09-27 18:04:14,391 - __main__ - INFO - Route ID: route-cultural-1759014242667
+2025-09-27 18:04:14,391 - __main__ - INFO - User ID: system-user
+2025-09-27 18:04:14,391 - __main__ - INFO - Número de POIs: 3
+2025-09-27 18:04:14,391 - __main__ - INFO - Convirtiendo solicitud gRPC a datos del modelo...
+2025-09-27 18:04:14,406 - __main__ - INFO - Datos del modelo preparados: 3 POIs
+2025-09-27 18:04:14,406 - __main__ - INFO - Ejecutando modelo MRL-AMIS...
+2025-09-27 18:04:14,406 - __main__ - INFO - Generados 100 Work Packages iniciales
+2025-09-27 18:04:14,407 - __main__ - ERROR - Error en optimización de ruta: '0'
+Traceback (most recent call last):
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/indexes/base.py", line 3805, in get_loc
+    return self._engine.get_loc(casted_key)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "index.pyx", line 167, in pandas._libs.index.IndexEngine.get_loc
+  File "index.pyx", line 196, in pandas._libs.index.IndexEngine.get_loc
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7081, in pandas._libs.hashtable.PyObjectHashTable.get_item
+  File "pandas/_libs/hashtable_class_helper.pxi", line 7089, in pandas._libs.hashtable.PyObjectHashTable.get_item
+KeyError: '0'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/santiagovera/FrontEnd/e-Xiua/ModeloMrlAmisPythonService/grpc_server.py", line 107, in OptimizeRoute
+    results = self._execute_mrl_amis_model(data, request)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/FrontEnd/e-Xiua/ModeloMrlAmisPythonService/grpc_server.py", line 270, in _execute_mrl_amis_model
+    metrics = evaluar_funciones_objetivo(ruta_decodificada, data, tipo_turista=tipo_turista)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/FrontEnd/e-Xiua/ModeloMrlAmisPythonService/src/generacionWorkPackages/funcionesObjetivo.py", line 42, in evaluar_funciones_objetivo
+    costo_total += costos_df.loc[origen, destino]
+                   ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/indexing.py", line 1183, in __getitem__
+    return self.obj._get_value(*key, takeable=self._takeable)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/frame.py", line 4221, in _get_value
+    row = self.index.get_loc(index)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/santiagovera/miniconda3/envs/runmodel-environment-mrl-amis/lib/python3.11/site-packages/pandas/core/indexes/base.py", line 3812, in get_loc
+    raise KeyError(key) from err
+KeyError: '0'

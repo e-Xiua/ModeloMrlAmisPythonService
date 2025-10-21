@@ -141,9 +141,11 @@ class DataGenerator:
         return co2_matrix
     
     def calculate_accident_risk_matrix(self) -> np.ndarray:
-        """Calcula matriz de riesgo de accidentes basada en datos reales"""
-        # Matriz de riesgo de accidentes real proporcionada
-        real_accident_risk = [
+        """Calcula matriz de riesgo de accidentes adaptada al número de POIs"""
+        n = len(self.pois)
+        
+        # Matriz de riesgo de accidentes real proporcionada (para referencia con 15 POIs)
+        real_accident_risk_reference = [
             [0, 40, 20, 20, 20, 40, 20, 70, 20, 20, 20, 20, 20, 70, 20],
             [40, 0, 40, 40, 40, 20, 20, 70, 40, 40, 40, 40, 40, 70, 40],
             [20, 40, 0, 20, 20, 40, 20, 70, 20, 20, 20, 20, 20, 70, 20],
@@ -161,7 +163,36 @@ class DataGenerator:
             [20, 40, 20, 20, 20, 40, 20, 70, 40, 40, 40, 40, 40, 70, 0]
         ]
         
-        return np.array(real_accident_risk, dtype=float)
+        # Si tenemos el número exacto de POIs de referencia, usar la matriz real
+        if n == 15:
+            return np.array(real_accident_risk_reference, dtype=float)
+        
+        # Para otros números de POIs, generar matriz adaptiva
+        accident_risk_matrix = np.zeros((n, n))
+        
+        # Usar los primeros n POIs de la matriz de referencia si están disponibles
+        if n <= 15:
+            for i in range(n):
+                for j in range(n):
+                    accident_risk_matrix[i, j] = real_accident_risk_reference[i][j]
+        else:
+            # Si necesitamos más POIs que los de referencia, extender con valores simulados
+            for i in range(n):
+                for j in range(n):
+                    if i == j:
+                        accident_risk_matrix[i, j] = 0  # Sin riesgo consigo mismo
+                    elif i < 15 and j < 15:
+                        # Usar datos reales para los primeros 15 POIs
+                        accident_risk_matrix[i, j] = real_accident_risk_reference[i][j]
+                    else:
+                        # Generar valores simulados para POIs adicionales
+                        # Basado en patrones de la matriz real: riesgo bajo (20), medio (40), alto (70)
+                        risk_levels = [20, 40, 70]
+                        # Usar una distribución sesgada hacia riesgo bajo y medio
+                        weights = [0.6, 0.3, 0.1]  # 60% bajo, 30% medio, 10% alto
+                        accident_risk_matrix[i, j] = np.random.choice(risk_levels, p=weights)
+        
+        return accident_risk_matrix
     
     def _haversine_distance(self, point1: Tuple[float, float], point2: Tuple[float, float]) -> float:
         """Calcula distancia en km usando fórmula de Haversine"""
@@ -185,10 +216,12 @@ class DataGenerator:
         """
         print("Generando datos sintéticos para MRL-AMIS...")
         
-        # Crear DataFrames de POIs
+        # Crear DataFrames de POIs usando índices secuenciales
         pois_data = []
-        for poi in self.pois:
-            pois_data.append(poi.to_dict())
+        for i, poi in enumerate(self.pois):
+            poi_dict = poi.to_dict()
+            poi_dict['id'] = str(i+1)  # Asegurar índices secuenciales consistentes
+            pois_data.append(poi_dict)
         pois_df = pd.DataFrame(pois_data).set_index('id')
         
         # Crear DataFrame de grupos turísticos
@@ -197,8 +230,8 @@ class DataGenerator:
             groups_data.append(group.to_dict())
         groups_df = pd.DataFrame(groups_data).set_index('grupo_id')
         
-        # Generar matrices
-        poi_ids = [poi.id for poi in self.pois]
+        # Generar matrices usando índices secuenciales consistentes
+        poi_ids = [str(i+1) for i in range(len(self.pois))]
         
         distances_df = pd.DataFrame(
             self.calculate_distance_matrix(),

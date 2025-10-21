@@ -17,6 +17,7 @@ src/generacionWorkPackages/workPackages.py
 src/intelligence_boxes/__init__.py
 src/intelligence_boxes/definir_intelligence_boxes.py
 src/runmodel/__init__.py
+src/runmodel/java_adapter.py
 src/runmodel/main.py
 src/runmodel/util.py
 src/runmodel.egg-info/PKG-INFO
