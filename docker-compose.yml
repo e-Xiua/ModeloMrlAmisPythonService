@@ -1,0 +1,54 @@
+version: '3.9'
+
+services:
+  mrl_amis_python_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mrl-amis-python-service:latest
+    container_name: mrl_amis_python_service
+    ports:
+      - "${MRL_AMIS_PORT:-50051}:50051"
+    environment:
+      # gRPC Configuration
+      - GRPC_PORT=${GRPC_PORT:-50051}
+      
+      # Algorithm Configuration
+      - MAX_ITERATIONS=${MAX_ITERATIONS:-100}
+      - CONVERGENCE_THRESHOLD=${CONVERGENCE_THRESHOLD:-0.001}
+      - POPULATION_SIZE=${POPULATION_SIZE:-50}
+      
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONUNBUFFERED=1
+      
+      # Data Paths
+      - DATA_DIR=/app/data
+      - OUTPUT_DIR=/app/output
+    
+    volumes:
+      # Volúmenes para datos y resultados (opcional)
+      - mrl_amis_data:/app/data
+      - mrl_amis_output:/app/output
+    
+    networks:
+      - tesisNetwork
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  tesisNetwork:
+    external: true
+
+volumes:
+  mrl_amis_data:
+    driver: local
+  mrl_amis_output:
+    driver: local
