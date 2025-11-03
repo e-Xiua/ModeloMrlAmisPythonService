@@ -348,9 +348,12 @@ def _pois_to_dataframe(pois: List[POI]) -> pd.DataFrame:
                 "riesgo_salud",
                 "riesgo_accidente",
             ]
-        )
+        ).set_index("poi_id")
 
-    return pd.DataFrame(rows)
+    # CRITICAL FIX: Set poi_id as index (MRL-AMIS expects POI IDs as index)
+    df = pd.DataFrame(rows)
+    df = df.set_index("poi_id")
+    return df
 
 
 def _build_distance_and_time_matrices(pois: List[POI]) -> Tuple[pd.DataFrame, pd.DataFrame]:
