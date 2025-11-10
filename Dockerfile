@@ -3,8 +3,8 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependencias del sistema necesarias
-RUN apt-get update && apt-get install -y \
+# Instalar dependencias del sistema necesarias en una sola capa
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     cmake \
@@ -13,22 +13,23 @@ RUN apt-get update && apt-get install -y \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar archivos de requisitos
+# Copiar archivos de requisitos primero para aprovechar cache de Docker
 COPY requirements.txt .
 COPY setup.py .
 COPY setup.cfg .
 COPY pyproject.toml .
 
-# Copiar código fuente y proto files
+# Instalar solo las dependencias primero (sin -e .)
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copiar código fuente y proto files después de instalar dependencias
 COPY src ./src
 COPY data ./data
 COPY proto ./proto
 
-# Instalar dependencias de Python
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir openpyxl scikit-learn matplotlib seaborn folium polyline && \
-    pip install --no-cache-dir -e .
+# Ahora instalar el paquete en modo editable
+RUN pip install --no-cache-dir -e .
 
 # Generar código Python desde proto files
 RUN mkdir -p src/grpc_generated && \
@@ -37,7 +38,8 @@ RUN mkdir -p src/grpc_generated && \
     --python_out=src/grpc_generated \
     --grpc_python_out=src/grpc_generated \
     proto/route_optimization.proto && \
-    touch src/grpc_generated/__init__.py
+    touch src/grpc_generated/__init__.py && \
+    sed -i 's/import route_optimization_pb2/from . import route_optimization_pb2/g' src/grpc_generated/route_optimization_pb2_grpc.py
 
 # Crear usuario no-root para seguridad
 RUN useradd -m -u 1000 mrluser && \
