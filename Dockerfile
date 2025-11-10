@@ -54,9 +54,9 @@ EXPOSE 50051
 ENV PYTHONUNBUFFERED=1
 ENV GRPC_PORT=50051
 
-# Health check (si tienes un endpoint de health)
+# Health check - Verify gRPC server is listening on port 50051
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD python -c "import sys; sys.exit(0)" || exit 1
+  CMD python -c "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.settimeout(5); result = s.connect_ex(('localhost', 50051)); s.close(); exit(0 if result == 0 else 1)" || exit 1
 
-# Comando por defecto - Ejecutar servidor gRPC
-CMD ["python", "src/grpc_server.py"]
+# Comando por defecto - Ejecutar servidor gRPC con módulo grpc_queue
+CMD ["python", "-m", "grpc_queue.server"]

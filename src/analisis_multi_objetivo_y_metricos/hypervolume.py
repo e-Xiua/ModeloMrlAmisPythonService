@@ -1,5 +1,5 @@
 import numpy as np
-from pygmo import hypervolume
+from pymoo.indicators.hv import HV
 
 
 
@@ -52,10 +52,11 @@ def calculate_hypervolume(objectives_np, reference_point, maximize_objectives_li
         max_obj = np.max(objectives_minimization[:, i])
         reference_minimization[i] = max(reference_minimization[i], max_obj * 1.1)
 
-    # 6. Calcular el hipervolumen utilizando pygmo
+    # 6. Calcular el hipervolumen utilizando pymoo
     try:
-        hv_calculator = hypervolume(objectives_minimization)
-        hv_value = hv_calculator.compute(reference_minimization)
+        # pymoo HV indicator - ref point must be worse than all points
+        hv_indicator = HV(ref_point=reference_minimization)
+        hv_value = hv_indicator(objectives_minimization)
 
         # 7. Normalizar al rango [0,1]
         # Calcular el hipervolumen máximo posible en este espacio normalizado

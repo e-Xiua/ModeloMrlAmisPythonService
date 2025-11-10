@@ -424,7 +424,7 @@ def get_hybrid_job_manager() -> HybridJobManager:
         }
         
         local_queue_config = {
-            'max_concurrent_jobs': int(os.getenv('MAX_CONCURRENT_JOBS', '2')),
+            'max_concurrent_jobs': int(os.getenv('MAX_CONCURRENT_JOBS', '1000')),
             'max_queue_size': int(os.getenv('MAX_QUEUE_SIZE', '50')),
             'use_multiprocessing': os.getenv('USE_MULTIPROCESSING', 'true').lower() == 'true'
         }
