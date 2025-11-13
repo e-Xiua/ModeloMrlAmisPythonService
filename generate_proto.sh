@@ -22,7 +22,7 @@ touch "${SCRIPT_DIR}/src/__init__.py"
 touch "${OUT_DIR}/__init__.py"
 
 # Usa grpc_tools.protoc desde el entorno conda activo
-python -m grpc_tools.protoc \
+python3 -m grpc_tools.protoc \
   -I "${PROTO_DIR}" \
   --python_out="${OUT_DIR}" \
   --grpc_python_out="${OUT_DIR}" \
