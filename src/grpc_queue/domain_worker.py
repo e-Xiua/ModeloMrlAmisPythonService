@@ -926,12 +926,25 @@ class DomainMRLAMISWorker:
         
         # Construir respuesta
         objectives = best_solution['objetivos']
+        route_metrics = self._calculate_sequence_metrics(
+            best_solution.get('ruta_decodificada', []),
+            domain_payload
+        )
+
+        computed_distance = route_metrics['distance_km']
+        computed_travel_minutes = route_metrics['travel_minutes']
+        computed_visit_minutes = route_metrics['visit_minutes']
+        computed_total_time = computed_travel_minutes + computed_visit_minutes
+
+        # Alinear objetivos para que reflejen los cálculos recientes
+        objectives.setdefault('distancia_total', computed_distance)
+        objectives.setdefault('tiempo_total', computed_total_time)
         
         result = {
             'optimized_sequence': optimized_sequence,
             'route_description': f'Ruta optimizada con {len(optimized_sequence)} POIs usando MRL-AMIS',
-            'total_distance_km': objectives.get('distancia_total', 0.0),
-            'total_time_minutes': int(objectives.get('tiempo_total', 0)),
+            'total_distance_km': objectives.get('distancia_total', computed_distance),
+            'total_time_minutes': int(objectives.get('tiempo_total', computed_total_time)),
             'total_cost': objectives.get('costo_total', 0.0),
             'optimization_algorithm': 'MRL-AMIS-Real',
             'optimization_score': objectives.get('preferencia_total', 0) / 100.0,
@@ -973,7 +986,12 @@ class DomainMRLAMISWorker:
             progress = ((i + 1) / intervals) * 100
             elapsed_time = (i + 1) * interval_time
             
-            logger.info(f"⏳ Simulando procesamiento... {progress:.1f}% completado ({elapsed_time:.0f}s/{total_wait_time}s)")
+            logger.info(
+                "⏳ Simulando procesamiento... %.1f%% completado (%ds/%ds)",
+                progress,
+                int(elapsed_time),
+                total_wait_time
+            )
             time.sleep(interval_time)
         
         logger.info("✅ Simulación de procesamiento completada")
@@ -1058,11 +1076,11 @@ class DomainMRLAMISWorker:
         }
         
         logger.info("🎯 Solución de respaldo generada exitosamente:")
-        logger.info(f"   - Tipo: Ruta cíclica completa")
+        logger.info("   - Tipo: Ruta cíclica completa")
         logger.info(f"   - POIs incluidos: {len(all_pois)}")
         logger.info(f"   - Ruta: {' → '.join(map(str, ruta_ciclica))}")
         logger.info(f"   - Tiempo simulado: {total_wait_time}s")
-        
+
         return fallback_solution
 
     def _format_optimized_sequence(
@@ -1094,3 +1112,42 @@ class DomainMRLAMISWorker:
                 })
         
         return sequence
+
+    def _calculate_sequence_metrics(self, route: list, domain_payload) -> Dict[str, float]:
+        """Calcula distancia y tiempos reales basados en la secuencia optimizada."""
+
+        if not route:
+            return {
+                'distance_km': 0.0,
+                'travel_minutes': 0.0,
+                'visit_minutes': 0.0
+            }
+
+        distance_matrix = domain_payload.distance_matrix
+        travel_time_matrix = domain_payload.travel_time_matrix
+        poi_lookup = {poi.id: poi for poi in domain_payload.pois}
+
+        total_distance = 0.0
+        total_travel_minutes = 0.0
+        total_visit_minutes = 0.0
+
+        for current_id, next_id in zip(route, route[1:]):
+            try:
+                total_distance += float(distance_matrix.at[current_id, next_id])
+            except Exception:
+                logger.warning(f"No se pudo obtener distancia entre {current_id} y {next_id}")
+            try:
+                total_travel_minutes += float(travel_time_matrix.at[current_id, next_id])
+            except Exception:
+                logger.warning(f"No se pudo obtener tiempo entre {current_id} y {next_id}")
+
+        for poi_id in route:
+            poi = poi_lookup.get(str(poi_id))
+            if poi:
+                total_visit_minutes += poi.duracion_visita_min
+
+        return {
+            'distance_km': total_distance,
+            'travel_minutes': total_travel_minutes,
+            'visit_minutes': total_visit_minutes
+        }
