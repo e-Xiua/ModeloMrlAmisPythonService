@@ -1,3 +1,4 @@
+
 #!/usr/bin/env bash
 # filepath: /home/santiagovera/FrontEnd/e-Xiua/ModeloMrlAmisPythonService/generate_proto.sh
 set -euo pipefail
@@ -31,3 +32,4 @@ python -m grpc_tools.protoc \
 sed -i 's/^import route_optimization_pb2 as /from \. import route_optimization_pb2 as /' "${OUT_DIR}/route_optimization_pb2_grpc.py"
 
 echo "✅ Protobuf generado en ${OUT_DIR}"
+
