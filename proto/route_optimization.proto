@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package route.optimization;
+
+// Servicio principal para optimización de rutas
+service RouteOptimizationService {
+    // Método principal para ejecutar el modelo MRL-AMIS
+    rpc OptimizeRoute(RouteOptimizationRequest) returns (RouteOptimizationResponse);
+    
+    // Método para verificar el estado del servicio
+    rpc HealthCheck(HealthRequest) returns (HealthResponse);
+}
+
+// Solicitud principal de optimización de ruta
+message RouteOptimizationRequest {
+    string route_id = 1;
+    string user_id = 2;
+    repeated POI pois = 3;
+    RoutePreferences preferences = 4;
+    RouteConstraints constraints = 5;
+}
+
+// Respuesta de optimización de ruta
+message RouteOptimizationResponse {
+    string route_id = 1;
+    bool success = 2;
+    string message = 3;
+    OptimizationResults results = 4;
+    OptimizationMetrics metrics = 5;
+}
+
+// Definición de un POI (Point of Interest)
+message POI {
+    int32 id = 1;
+    string name = 2;
+    double latitude = 3;
+    double longitude = 4;
+    string category = 5;
+    string subcategory = 6;
+    int32 visit_duration = 7; // en minutos
+    double cost = 8;
+    double rating = 9;
+    string description = 10;
+    bool accessibility = 11;
+    int32 provider_id = 12;
+    string provider_name = 13;
+}
+
+// Preferencias de ruta
+message RoutePreferences {
+    string optimize_for = 1; // "distance", "time", "cost", "sustainability"
+    int32 max_total_time = 2; // en minutos
+    double max_total_cost = 3;
+    bool accessibility_required = 4;
+}
+
+// Restricciones de ruta
+message RouteConstraints {
+    string start_time = 1; // formato "HH:mm"
+    bool lunch_break_required = 2;
+    int32 lunch_break_duration = 3; // en minutos
+}
+
+// Resultados de optimización
+message OptimizationResults {
+    repeated OptimizedPOI optimized_sequence = 1;
+    double total_distance_km = 2;
+    int32 total_time_minutes = 3;
+    double total_cost = 4;
+    double optimization_score = 5;
+    string route_description = 6;
+}
+
+// POI optimizado con información adicional
+message OptimizedPOI {
+    int32 poi_id = 1;
+    string poi_name = 2;
+    int32 visit_order = 3;
+    string arrival_time = 4; // formato "HH:mm"
+    string departure_time = 5; // formato "HH:mm"  
+    int32 estimated_visit_time = 6; // en minutos
+    double latitude = 7;
+    double longitude = 8;
+}
+
+// Métricas de optimización
+message OptimizationMetrics {
+    double hypervolume = 1;
+    double arp = 2; // Average Ratio Performance
+    double spacing = 3;
+    int32 pareto_front_size = 4;
+    int32 total_iterations = 5;
+    double execution_time_seconds = 6;
+}
+
+// Solicitud de verificación de salud
+message HealthRequest {
+    string service_name = 1;
+}
+
+// Respuesta de verificación de salud
+message HealthResponse {
+    bool is_healthy = 1;
+    string status = 2;
+    string version = 3;
+}

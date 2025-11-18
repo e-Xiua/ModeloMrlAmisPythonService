@@ -18,33 +18,45 @@ logger = logging.getLogger(__name__)
 # ---- Constantes y utilidades internas ------------------------------------------------------
 
 CATEGORY_TO_POI_TYPE = {
-    "hotel": "cultura",
-    "lodging": "cultura", 
-    "museo": "cultura",
-    "museum": "cultura",
-    "culture": "cultura",
-    "cultural": "cultura",
-    "balneario": "naturaleza",
-    "hotspring": "naturaleza",
-    "termales": "naturaleza",
-    "parque": "naturaleza",
-    "reserva": "naturaleza",
-    "nature": "naturaleza",
-    "aventura": "aventura",
-    "adventure": "aventura",
-    "tour": "aventura",
-    "gastronomia": "gastronomia",
-    "restaurant": "gastronomia",
-    "food": "gastronomia",
+    "yoga": "yoga",
+    "meditación": "meditación",
+    "meditacion": "meditación",
+    "spa": "spa",
+    "masajes": "masajes",
+    "senderismo": "senderismo",
+    "aguas termales": "aguas termales",
+    "nutrición saludable": "nutrición saludable",
+    "nutricion saludable": "nutrición saludable",
+    "fitness": "fitness",
+    "mindfulness": "mindfulness",
+    "retiros espirituales": "retiros espirituales",
+    "aromaterapia": "aromaterapia",
+    "pilates": "pilates",
+    "tai chi": "tai chi",
+    "naturopatía": "naturopatía",
+    "naturopatia": "naturopatía",
+    "terapias holísticas": "terapias holísticas",
+    "terapias holisticas": "terapias holísticas",
 }
-DEFAULT_POI_TYPE = "general"
+DEFAULT_POI_TYPE = "bienestar_general"
 
 BASE_CATEGORY_VECTOR = {
-    "cultura": 55.0,
-    "naturaleza": 60.0,
-    "aventura": 50.0,
-    "gastronomia": 55.0,
-    "general": 50.0,
+    "yoga": 60.0,
+    "meditación": 60.0,
+    "spa": 60.0,
+    "masajes": 60.0,
+    "senderismo": 60.0,
+    "aguas termales": 60.0,
+    "nutrición saludable": 60.0,
+    "fitness": 60.0,
+    "mindfulness": 60.0,
+    "retiros espirituales": 60.0,
+    "aromaterapia": 60.0,
+    "pilates": 60.0,
+    "tai chi": 60.0,
+    "naturopatía": 60.0,
+    "terapias holísticas": 60.0,
+    "bienestar_general": 50.0,
 }
 
 
@@ -58,6 +70,7 @@ class DomainPayload:
     distance_matrix: pd.DataFrame
     travel_time_matrix: pd.DataFrame
     co2_matrix: pd.DataFrame
+    cost_matrix: pd.DataFrame
     group_preferences_matrix: pd.DataFrame
     internal_to_external_ids: Dict[str, str]
     raw_request: Dict[str, Any]
@@ -101,7 +114,8 @@ def build_domain_payload(
     distance_matrix, travel_time_matrix = _build_distance_and_time_matrices(pois)
     co2_matrix = _build_co2_matrix(pois, travel_time_matrix)
     preferences_matrix = _build_group_preferences_matrix(tourist_group, pois)
-
+    cost_matrix = _build_costs_matrix(pois, travel_time_matrix)
+    
     return DomainPayload(
         pois=pois,
         tourist_group=tourist_group,
@@ -109,6 +123,7 @@ def build_domain_payload(
         distance_matrix=distance_matrix,
         travel_time_matrix=travel_time_matrix,
         co2_matrix=co2_matrix,
+        cost_matrix=cost_matrix,
         group_preferences_matrix=preferences_matrix,
         internal_to_external_ids=id_lookup,
         raw_request=request_data,
@@ -348,9 +363,12 @@ def _pois_to_dataframe(pois: List[POI]) -> pd.DataFrame:
                 "riesgo_salud",
                 "riesgo_accidente",
             ]
-        )
+        ).set_index("poi_id")
 
-    return pd.DataFrame(rows)
+    # CRITICAL FIX: Set poi_id as index (MRL-AMIS expects POI IDs as index)
+    df = pd.DataFrame(rows)
+    df = df.set_index("poi_id")
+    return df
 
 
 def _build_distance_and_time_matrices(pois: List[POI]) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -377,6 +395,34 @@ def _build_distance_and_time_matrices(pois: List[POI]) -> Tuple[pd.DataFrame, pd
         pd.DataFrame(distances, index=labels, columns=labels),
         pd.DataFrame(travel_times, index=labels, columns=labels),
     )
+    
+def _build_costs_matrix(pois: List[POI], travel_time_matrix: pd.DataFrame) -> pd.DataFrame:
+    """Genera matriz de costos basada en tiempos de viaje y características de POIs."""
+    
+    num_pois = len(pois)
+    if num_pois == 0:
+        return pd.DataFrame()
+    
+    costs = np.zeros((num_pois, num_pois))
+    labels = [poi.id for poi in pois]
+    
+    for i, origin_poi in enumerate(pois):
+        for j, target_poi in enumerate(pois):
+            if i == j:
+                continue
+            
+            # Costo por transporte: tiempo de viaje * costo por minuto
+            travel_time_minutes = travel_time_matrix.iloc[i, j]
+            transport_cost = travel_time_minutes * 0.5  # ~0.5 USD por minuto de viaje
+            
+            # Costo por estadía en el POI destino (usar entry_cost + stay_cost_per_hour del POI)
+            stay_time_hours = target_poi.duracion_visita_min / 60.0
+            stay_cost = target_poi.entry_cost + (stay_time_hours * target_poi.stay_cost_per_hour)
+            
+            # Total de costos para el viaje desde origin_poi hasta target_poi
+            costs[i, j] = transport_cost + stay_cost
+    
+    return pd.DataFrame(costs, index=labels, columns=labels)
 
 
 def _build_co2_matrix(pois: List[POI], travel_time_matrix: pd.DataFrame) -> pd.DataFrame:

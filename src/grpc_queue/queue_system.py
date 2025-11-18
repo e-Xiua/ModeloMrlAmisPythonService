@@ -58,7 +58,7 @@ class OptimizationJob:
 class QueueSystem:
     """Sistema de colas para gestionar trabajos de optimización MRL-AMIS con dataclasses."""
     
-    def __init__(self, max_concurrent_jobs=2, max_queue_size=50, use_multiprocessing=True):
+    def __init__(self, max_concurrent_jobs=1000, max_queue_size=50, use_multiprocessing=True):
         self.max_concurrent_jobs = max_concurrent_jobs
         self.max_queue_size = max_queue_size
         self.use_multiprocessing = False
@@ -306,7 +306,7 @@ def get_queue_system() -> QueueSystem:
     global _queue_system
     if _queue_system is None:
         _queue_system = QueueSystem(
-            max_concurrent_jobs=2,
+            max_concurrent_jobs=1000,
             max_queue_size=50,
             use_multiprocessing=True
         )

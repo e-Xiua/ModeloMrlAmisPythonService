@@ -1,3 +1,4 @@
+
 #!/usr/bin/env bash
 # filepath: /home/santiagovera/FrontEnd/e-Xiua/ModeloMrlAmisPythonService/generate_proto.sh
 set -euo pipefail
@@ -21,7 +22,7 @@ touch "${SCRIPT_DIR}/src/__init__.py"
 touch "${OUT_DIR}/__init__.py"
 
 # Usa grpc_tools.protoc desde el entorno conda activo
-python -m grpc_tools.protoc \
+python3 -m grpc_tools.protoc \
   -I "${PROTO_DIR}" \
   --python_out="${OUT_DIR}" \
   --grpc_python_out="${OUT_DIR}" \
@@ -31,3 +32,4 @@ python -m grpc_tools.protoc \
 sed -i 's/^import route_optimization_pb2 as /from \. import route_optimization_pb2 as /' "${OUT_DIR}/route_optimization_pb2_grpc.py"
 
 echo "✅ Protobuf generado en ${OUT_DIR}"
+

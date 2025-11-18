@@ -38,7 +38,7 @@ class RouteOptimizationServicer(route_optimization_pb2_grpc.RouteOptimizationSer
         
         # Configuración predeterminada del modelo MRL-AMIS
         self.default_config = {
-            'num_work_packages': 100,
+            'num_work_packages': 105,  # INCREASED: 100 -> 105 (+5 work packages)
             'max_iterations': 100,
             'num_pois': 15,
             'max_pois_per_route': 10,
