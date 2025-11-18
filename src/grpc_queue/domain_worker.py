@@ -142,60 +142,69 @@ class DomainMRLAMISWorker:
     ) -> Dict[str, Any]:
         """Prepara las estructuras de datos necesarias para MRL-AMIS."""
         
-        # Usar DataFrames del domain_payload
+        # ==================== DATOS REALES DEL REQUEST ====================
+        logger.info("Cargando datos REALES del request...")
+        
+        # POIs: Viene del request mapeado a DataFrame
+        real_pois_df = domain_payload.pois_dataframe
+        logger.info(f"  ✓ POIs reales: {real_pois_df.shape[0]} registros")
+        
+        # Matrices de distancia y tiempo: Calculadas desde coordenadas REALES
+        real_distances = domain_payload.distance_matrix
+        real_travel_times = domain_payload.travel_time_matrix
+        logger.info(f"  ✓ Matrices reales: {real_distances.shape}")
+        
+        # CO₂: Usar la matriz ya calculada desde datos reales
+        real_co2_matrix = domain_payload.co2_matrix
+        logger.info(f"  ✓ Matriz CO₂ real calculada: {real_co2_matrix.shape}")
+        
+        real_cost_matrix = domain_payload.cost_matrix
+        # ==================== DATOS SINTÉTICOS UNICAMENTE NECESARIOS ====================
+        logger.info("🔧 Cargando datos SINTÉTICOS complementarios...")
+        
+        # Solo mantenemos los datos que no pueden ser calculados de datos reales
+        synthetic_accident = synthetic_data.get('accident_risk', pd.DataFrame())
+        synthetic_experience = synthetic_data.get('costos_experiencia', pd.DataFrame())
+        synthetic_params = synthetic_data.get('parametros_generales', {})
+        
+        logger.info(f"  ✓ Matrices sintéticas: accident_risk, costos_experiencia")
+        logger.info(f"  ✓ Parámetros sintéticos: {len(synthetic_params)} valores")
+        
+        # ==================== ESTRUCTURA FINAL DE DATOS ====================
         data = {
-            'pois': domain_payload.pois_dataframe,
-            'distances': domain_payload.distance_matrix,
-            'travel_times': domain_payload.travel_time_matrix,
+            # REALES (del request o calculados desde él)
+            'pois': real_pois_df,
+            'distances': real_distances,
+            'travel_times': real_travel_times,
+            'co2_emission_cost': real_co2_matrix,  # ← Ahora es REAL
+            'costs': real_cost_matrix,             # ← Ahora es REAL
+            
+            # SINTÉTICOS (no disponibles en el request)
+            'accident_risk': synthetic_accident,
+            'costos_experiencia': synthetic_experience,
+            'parametros_generales': synthetic_params,
+            
+            # Preferencias grupo-POI (calculadas desde datos reales del grupo)
             'preferencias_grupos_turistas': domain_payload.group_preferences_matrix,
         }
         
-        logger.info(
-            f"DataFrame POIs: {data['pois'].shape}, "
-            f"Distance Matrix: {data['distances'].shape}, "
-            f"Travel Time Matrix: {data['travel_times'].shape}"
-        )
+        # ==================== VALIDACIÓN DE CONSISTENCIA ====================
+        logger.info(" Validando consistencia...")
         
-        # Agregar matrices sintéticas adicionales del generador
-        for key in ['costs', 'co2_emission_cost', 'accident_risk', 'costos_experiencia']:
-            if key in synthetic_data:
-                data[key] = synthetic_data[key]
-                
-            # COSTOS DE EXPERIENCIA: Crear tabla con estructura correcta
-        if 'costos_experiencia' in synthetic_data:
-            costos_exp = synthetic_data['costos_experiencia']
-            
-            # Si es DataFrame, verificar que tenga los POI IDs como índice
-            if isinstance(costos_exp, pd.DataFrame):
-                # Reindexar si es necesario
-                poi_ids = [poi.id for poi in domain_payload.pois]
-                if list(costos_exp.index) != poi_ids:
-                    logger.info(f"Reindexando costos_experiencia para coincidir con POI IDs")
-                    # Crear nuevo DataFrame con índices correctos
-                    costos_exp_reindexed = pd.DataFrame(
-                        costos_exp.values[:len(poi_ids)],
-                        index=poi_ids,
-                        columns=costos_exp.columns
-                    )
-                    data['costos_experiencia'] = costos_exp_reindexed
-                else:
-                    data['costos_experiencia'] = costos_exp
-                
-                logger.info(f"Costos de experiencia agregados:")
-                logger.info(f"  -> Shape: {data['costos_experiencia'].shape}")
-                logger.info(f"  -> Índices (POI IDs): {data['costos_experiencia'].index.tolist()}")
-                logger.info(f"  -> Columnas: {data['costos_experiencia'].columns.tolist()}")
-                
-        params = synthetic_data.get('parametros_generales')
-        if params is not None and isinstance(params, dict):
-            data['parametros_generales'] = pd.DataFrame.from_dict(params, orient='index', columns=['Valor'])
-        else:
-            logger.warning("⚠️  PARÁMETROS GENERALES NO DISPONIBLES")
+        # Verificar que todas las matrices tengan los mismos índices
+        common_index = set(real_pois_df.index)
+        for name, matrix in [
+            ("distances", real_distances),
+            ("travel_times", real_travel_times),
+            ("co2_emission_cost", real_co2_matrix),
+            ("costs", real_cost_matrix),
+        ]:
+            if set(matrix.index) != common_index:
+                logger.error(f"❌ Índices inconsistentes en {name}")
+                raise ValueError(f"Índices de {name} no coinciden con POIs")
         
-        # Parámetros generales
-        data['parametros_generales'] = synthetic_data.get('parametros_generales', {})
-        logger.info(f"Parámetros generales agregados: {len(data['parametros_generales'])} parámetros")
-        logger.info(f"Parámetros generales: {data['parametros_generales']}")
+        logger.info(" Todas las matrices tienen índices consistentes")
+        logger.info(" Estructura de datos preparada exitosamente")
         
         return data
 

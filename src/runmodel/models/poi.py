@@ -221,4 +221,4 @@ def create_sample_pois() -> list[POI]:
         sample_pois.append(poi)
     
     return sample_pois
-    return sample_pois
+    
