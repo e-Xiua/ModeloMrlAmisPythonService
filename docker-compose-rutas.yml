@@ -1,0 +1,180 @@
+version: '3.9'
+
+# Master Docker Compose for Route Optimization Stack
+# This orchestrates: Python gRPC Service -> Route Processing -> Route Optimizer
+
+services:
+  # ============================================
+  # 1. Python MRL-AMIS gRPC Service (Base Layer)
+  # ============================================
+  mrl_amis_python_service:
+    build:
+      context: ./ModeloMrlAmisPythonService
+      dockerfile: Dockerfile
+    image: mrl-amis-python-service:latest
+    container_name: mrl-amis-python-service
+    ports:
+      - "${MRL_AMIS_PORT:-50051}:50051"
+    environment:
+      # gRPC Configuration
+      - GRPC_PORT=${GRPC_PORT:-50051}
+      
+      # Algorithm Configuration
+      - MAX_ITERATIONS=${MAX_ITERATIONS:-100}
+      - CONVERGENCE_THRESHOLD=${CONVERGENCE_THRESHOLD:-0.001}
+      - POPULATION_SIZE=${POPULATION_SIZE:-50}
+      
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - PYTHONUNBUFFERED=1
+      
+      # Data Paths
+      - DATA_DIR=/app/data
+      - OUTPUT_DIR=/app/output
+    
+    volumes:
+      - mrl_amis_data:/app/data
+      - mrl_amis_output:/app/output
+    
+    networks:
+      - tesisNetwork
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.settimeout(5); result = s.connect_ex(('localhost', 50051)); s.close(); exit(0 if result == 0 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ============================================
+  # 2. Route Processing Service (Middle Layer)
+  # ============================================
+  route-processing-service:
+    build:
+      context: ./route-processing-service
+      dockerfile: Dockerfile
+    image: route-processing-service:latest
+    container_name: route-processing-service
+    ports:
+      - "${ROUTE_PROCESSING_PORT:-8086}:8086"
+    environment:
+      # Spring Profile
+      - SPRING_PROFILES_ACTIVE=docker
+      
+      # Server Configuration
+      - SERVER_PORT=${SERVER_PORT:-8086}
+      
+      # CORS Configuration
+      - CORS_ORIGIN_1=${CORS_ORIGIN_1:-http://localhost:4200}
+      - CORS_ORIGIN_2=${CORS_ORIGIN_2:-http://localhost:3000}
+      - CORS_ORIGIN_3=${CORS_ORIGIN_3:-http://localhost:8085}
+      
+      # gRPC Python Service Connection
+      - GRPC_PYTHON_HOST=${GRPC_PYTHON_HOST:-mrl-amis-python-service}
+      - GRPC_PYTHON_PORT=${GRPC_PYTHON_PORT:-50051}
+      - GRPC_CONNECTION_TIMEOUT=${GRPC_CONNECTION_TIMEOUT:-30}
+      - GRPC_REQUEST_TIMEOUT=${GRPC_REQUEST_TIMEOUT:-600}
+      - GRPC_MAX_RETRIES=${GRPC_MAX_RETRIES:-3}
+      
+      # Processing Configuration
+      - MAX_CONCURRENT_REQUESTS=${MAX_CONCURRENT_REQUESTS:-5}
+      - CLEANUP_HOURS=${CLEANUP_HOURS:-2}
+      
+      # Java Options
+      - JAVA_OPTS=-Xms${JAVA_OPTS_XMS:-512m} -Xmx${JAVA_OPTS_XMX:-1024m}
+    
+    networks:
+      - tesisNetwork
+    
+    depends_on:
+      mrl_amis_python_service:
+        condition: service_healthy
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8086/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ============================================
+  # 3. Route Optimizer Service (Top Layer)
+  # ============================================
+  route-optimizer-service:
+    build:
+      context: ./route-optimizer-service
+      dockerfile: Dockerfile
+    image: route-optimizer-service:latest
+    container_name: route-optimizer-service
+    ports:
+      - "${ROUTE_OPTIMIZER_PORT:-8085}:8085"
+    environment:
+      # Spring Profile
+      - SPRING_PROFILES_ACTIVE=docker
+      
+      # Server Configuration
+      - SERVER_PORT=${SERVER_PORT:-8085}
+      
+      # RabbitMQ Configuration
+      - RABBITMQ_HOST=${RABBITMQ_HOST:-rabbitmq}
+      - RABBITMQ_PORT=${RABBITMQ_PORT:-5672}
+      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME:-user}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD:-user}
+      
+      # Route Processing Service URL
+      - ROUTE_PROCESSING_URL=${ROUTE_PROCESSING_URL:-http://route-processing-service:8086}
+      
+      # CORS Configuration
+      - CORS_ORIGIN_1=${CORS_ORIGIN_1:-http://localhost:4200}
+      - CORS_ORIGIN_2=${CORS_ORIGIN_2:-http://localhost:3000}
+      
+      # Async Configuration
+      - ASYNC_CORE_SIZE=${ASYNC_CORE_SIZE:-5}
+      - ASYNC_MAX_SIZE=${ASYNC_MAX_SIZE:-20}
+      
+      # Job Configuration
+      - JOB_TIMEOUT=${JOB_TIMEOUT:-10}
+      - JOB_POLLING_INTERVAL=${JOB_POLLING_INTERVAL:-2}
+      - JOB_CLEANUP_HOURS=${JOB_CLEANUP_HOURS:-24}
+      - MAX_CONCURRENT_JOBS=${MAX_CONCURRENT_JOBS:-10}
+
+      # Feign Clients URLs
+      - PREFERENCIAS_SERVICE_URL=${PREFERENCIAS_SERVICE_URL:-http://user-preferences-api:8081}
+      - TURISTA_SERVICE_URL=${TURISTA_SERVICE_URL:-http://admin-users-api:8082}
+      - SERVICIO_SERVICE_URL=${SERVICIO_SERVICE_URL:-http://providers-api:8080}
+      
+      # Mock Data
+      - MOCK_DATA_ENABLED=${MOCK_DATA_ENABLED:-true}
+      
+      # Java Options
+      - JAVA_OPTS=-Xms${JAVA_OPTS_XMS:-512m} -Xmx${JAVA_OPTS_XMX:-1024m}
+    
+    networks:
+      - tesisNetwork
+    
+    depends_on:
+      route-processing-service:
+        condition: service_healthy
+    
+    restart: unless-stopped
+    
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8085/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  tesisNetwork:
+    external: true
+
+volumes:
+  mrl_amis_data:
+    driver: local
+  mrl_amis_output:
+    driver: local

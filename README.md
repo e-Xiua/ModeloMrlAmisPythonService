@@ -1,0 +1,1 @@
+Para el despliegue es necesario sacar "docker-compose-rutas.yml" a un directorio donde se tengan los tres servicios enfocados en esta parte del sistema (route-processing-service, route-optimizer-service y este, ModeloMrlAmisPythonService)
